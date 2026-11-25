@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORE // Hangman Protocol</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap');
+:root{--bg:#080d18;--panel:#101a2b;--panel2:#0b1423;--line:#243954;--cyan:#51e5df;--blue:#4d91ff;--pink:#ff477e;--muted:#8498b3;--white:#edf5ff;--green:#76efb2}
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(ellipse at 18% 20%,#142b43 0,transparent 35%),radial-gradient(ellipse at 85% 80%,#10223a 0,transparent 35%),var(--bg);color:var(--white);font-family:'Rajdhani',sans-serif;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;background-image:linear-gradient(rgba(95,153,195,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(95,153,195,.12) 1px,transparent 1px);background-size:36px 36px}
+button{font:inherit;cursor:pointer}.screen{min-height:100vh;display:none;position:relative;z-index:1}.screen.active{display:flex}
+#intro{align-items:center;justify-content:center;padding:28px}.intro-wrap{width:min(960px,100%);display:grid;grid-template-columns:1.1fr .9fr;gap:42px;align-items:center}
+.eyebrow,.micro{font:11px 'DM Mono',monospace;letter-spacing:2px;color:var(--cyan);text-transform:uppercase}.intro-title{font:800 clamp(42px,7vw,78px)/.95 Orbitron,sans-serif;margin:18px 0 20px;letter-spacing:-3px}.intro-title span{color:var(--cyan)}.intro-copy{font-size:20px;color:#a9bbd1;max-width:510px;line-height:1.35}.intro-copy strong{color:var(--white)}
+.primary{border:1px solid var(--cyan);background:var(--cyan);color:#07131d;padding:14px 28px;font:700 15px Orbitron,sans-serif;letter-spacing:1px;clip-path:polygon(0 0,93% 0,100% 28%,100% 100%,7% 100%,0 72%);transition:.2s}.primary:hover{background:#a0fff4;transform:translateY(-2px);box-shadow:0 0 28px #51e5df45}
+.intro-actions{display:flex;align-items:center;gap:18px;margin-top:30px}.intro-note{font:10px 'DM Mono',monospace;color:var(--muted);line-height:1.6}
+.preview-board{border:1px solid #29445f;background:linear-gradient(145deg,#102338,#091321);padding:18px;position:relative;box-shadow:0 20px 70px #0008}.preview-board:before,.preview-board:after{content:"";position:absolute;width:18px;height:18px;border-color:var(--cyan);border-style:solid}.preview-board:before{top:-1px;left:-1px;border-width:2px 0 0 2px}.preview-board:after{right:-1px;bottom:-1px;border-width:0 2px 2px 0}
+.board-head{display:flex;justify-content:space-between;font:10px 'DM Mono';color:#87a7c2;letter-spacing:1px;margin-bottom:12px}.preview-svg{width:100%;display:block}
+#game{height:100vh;min-height:0;overflow:hidden;padding:14px 18px;flex-direction:column;max-width:1500px;margin:auto;width:100%}.topbar{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;border-bottom:1px solid var(--line);padding:0 2px 10px;margin-bottom:12px}.brand{font:700 17px Orbitron;letter-spacing:1px}.brand span{color:var(--cyan)}.top-meta{font:10px 'DM Mono';color:var(--muted);letter-spacing:1px}.game-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:14px;flex:1;min-height:0;min-width:0}
+.panel{background:linear-gradient(145deg,#111e30ed,#0b1422f2);border:1px solid var(--line);position:relative;min-height:0}.panel:before{content:"";position:absolute;left:-1px;top:-1px;width:32px;height:2px;background:var(--cyan)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 15px;border-bottom:1px solid #20334a}.panel-title{font:600 12px Orbitron;letter-spacing:1.3px}.status{font:10px 'DM Mono';color:var(--green)}
+.motherboard-area{padding:9px 12px 10px}.motherboard{width:100%;height:clamp(245px,53vh,450px);display:block}.part{opacity:0;scale:.88;transform-box:fill-box;transform-origin:center;transition:opacity .5s,scale .5s}.part.unlocked{opacity:1;scale:1.12}.part-label{font:9px 'DM Mono';fill:#9db6cd;letter-spacing:.5px}.trace{stroke:#376a78;stroke-width:2;fill:none;opacity:.7}.trace-dot{fill:var(--cyan)}.board-base{fill:#0d3a37;stroke:#2b8c7e;stroke-width:2}.board-inner{fill:#0b2c2d;stroke:#276b66;stroke-width:1.4}.chip{fill:#111a27;stroke:#6e9a9d;stroke-width:2}.chip-pin{stroke:#8aaeb0;stroke-width:2}.socket{fill:#142330;stroke:#51bdb2;stroke-width:2}.socket-hole{fill:#557b7c}.slot{fill:#102331;stroke:#77b8b1;stroke-width:2}.metal{fill:#819eaa;stroke:#b4cbd0;stroke-width:1}.glow{filter:drop-shadow(0 0 5px #51e5df88)}
+.progress-row{display:flex;justify-content:space-between;gap:12px;font:10px 'DM Mono';color:var(--muted);padding:0 4px 10px}.progress-track{height:5px;background:#1c2b40;margin:0 4px 8px}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--cyan));transition:width .4s}
+.right-column{display:flex;flex-direction:column;gap:12px;min-height:0}.hangman-panel{flex:0 0 auto}.hangman-wrap{padding:4px 14px 0;display:flex;justify-content:center}.hangman{width:min(100%,300px);height:clamp(112px,22vh,165px)}.gallows{stroke:#8199b5;stroke-width:4;fill:none;stroke-linecap:round}.person{stroke:var(--pink);stroke-width:4;fill:none;stroke-linecap:round;opacity:0;transition:opacity .2s}.person.show{opacity:1}.lives{display:flex;justify-content:center;gap:8px;padding:0 0 9px}.life{width:25px;height:25px;border:1px solid #31506a;display:grid;place-items:center;color:var(--pink);font-size:16px}.life.lost{opacity:.22;color:#73859a;text-decoration:line-through}
+.word-panel{padding-bottom:15px}.clue{font-size:clamp(14px,1.35vw,17px);line-height:1.2;color:#d9e7f4;padding:10px 14px 5px;min-height:48px}.word{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;padding:5px 10px 9px}.letter-slot{width:clamp(19px,2.5vw,30px);height:31px;border-bottom:2px solid #52748e;display:grid;place-items:center;font:600 16px Orbitron;color:var(--cyan)}.letter-slot.space{width:12px;border:0}.letter-slot.revealed{border-color:var(--cyan)}
+.letter-slot{padding:0;border:0;border-bottom:2px solid #52748e;border-radius:0;background:transparent;color:var(--cyan);text-align:center;outline:none;caret-color:var(--cyan)}.letter-slot:focus{border-bottom-color:var(--cyan);background:#51e5df12}.letter-slot:disabled{opacity:1;color:var(--cyan)}.answer-actions{display:flex;justify-content:center;padding:2px 14px 5px}.answer-actions .primary{padding:10px 18px;font-size:11px}.key{border:1px solid #30445d;background:#142338;color:#d9e9f8;height:35px;font:600 13px Orbitron;transition:.15s}.key:hover:not(:disabled){border-color:var(--cyan);color:var(--cyan);background:#1b344a}.key:disabled{opacity:.25;cursor:default}.key.good{border-color:#4bca9c;background:#12382f;color:var(--green)}.key.bad{border-color:#9d4662;background:#351b2a;color:#ff789a}
+.word-info{display:flex;justify-content:space-between;padding:12px 18px 0;color:var(--muted);font:10px 'DM Mono';text-transform:uppercase;letter-spacing:1px}.controls{display:flex;gap:8px;padding:0 15px 15px;margin-top:12px}.secondary{flex:1;background:transparent;border:1px solid #35506b;color:#b8cce0;padding:9px;font:11px 'DM Mono';letter-spacing:1px}.secondary:hover{border-color:var(--cyan);color:var(--cyan)}
+.toast{font:11px 'DM Mono';color:var(--cyan);text-align:center;min-height:16px;padding:0 12px 10px}
+#result{align-items:center;justify-content:center;padding:24px}.result-card{width:min(560px,100%);text-align:center;background:linear-gradient(145deg,#142338,#0a1422);border:1px solid var(--line);padding:42px 30px;box-shadow:0 20px 80px #0009}.result-icon{font-size:44px;margin-bottom:12px}.result-card h1{font:700 clamp(28px,5vw,44px) Orbitron;margin:0 0 12px}.result-card p{font-size:18px;color:#a9bbd1;line-height:1.4}.result-card .primary{margin-top:18px}.result-card .secondary{max-width:200px;margin:12px auto 0;display:block}
+@media(max-width:850px){#game{height:auto;min-height:100vh;overflow:visible}.intro-wrap{grid-template-columns:1fr}.preview-board{max-width:540px}.game-grid{grid-template-columns:1fr}.motherboard{height:340px}.right-column{display:grid;grid-template-columns:1fr 1fr}.hangman-panel,.word-panel{min-width:0}}
+@media(max-width:580px){#game{padding:12px}.topbar{align-items:flex-start;gap:8px}.top-meta{text-align:right}.right-column{display:flex}.motherboard{height:300px}.panel-head{padding:12px}.letter-slot{width:23px;height:34px;font-size:15px}.intro-wrap{gap:25px}.intro-title{letter-spacing:-2px}.answer-actions{padding:4px 10px 8px}.answer-actions .primary{padding:9px 14px}}
+
+.module-nav{display:flex;align-items:center;gap:7px;margin-left:auto;margin-right:22px}
+.module-tab{background:transparent;border:1px solid #30445d;color:#8fa5bf;padding:9px 13px;font:10px 'DM Mono',monospace;letter-spacing:1px;white-space:nowrap}
+.module-tab:hover,.module-tab.active{border-color:var(--cyan);color:var(--cyan);background:#51e5df12}
+.module-view{display:none;flex:1;min-height:0}
+#hangmanModule.active{display:flex;flex-direction:column}
+#hangmanModule .game-grid{flex:1;min-height:0}
+#crosswordModule.active{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:14px}
+.crossword-board-panel,.crossword-clues-panel{display:flex;flex-direction:column;min-width:0;min-height:0}
+.crossword-board-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px 8px;overflow:hidden}
+.crossword-grid{--cell:clamp(15px,1.34vw,20px);display:grid;grid-template-columns:repeat(34,var(--cell));grid-template-rows:repeat(22,var(--cell));gap:2px;max-width:100%;max-height:100%}
+.cross-cell{position:relative;width:var(--cell);height:var(--cell);background:#1b3145;border:1px solid #35516b}
+.cross-cell input{display:block;width:100%;height:100%;padding:0;border:0;outline:0;background:transparent;color:var(--cyan);text-align:center;text-transform:uppercase;font:700 clamp(9px,.85vw,13px) Orbitron,sans-serif;caret-color:var(--cyan)}
+.cross-cell input:focus{background:#51e5df22;box-shadow:inset 0 0 0 1px var(--cyan)}
+.cross-cell .cell-number{position:absolute;top:0;left:2px;z-index:1;color:#a9bfd5;font:7px 'DM Mono',monospace;line-height:1;pointer-events:none}
+.cross-cell.correct{background:#164334;border-color:#54d7a0}
+.cross-cell.incorrect{background:#4a2033;border-color:#ff668e}
+.cross-cell.empty-cell{background:transparent;border:0}
+.crossword-footer{flex:0 0 auto;border-top:1px solid #20334a;padding:9px 12px 10px}
+.crossword-score{font:11px 'DM Mono',monospace;color:var(--green);text-align:center;margin-bottom:8px}
+.crossword-actions{display:flex;gap:8px}
+.crossword-actions .secondary,.crossword-actions .primary{flex:1;padding:9px 10px;font-size:10px}
+.crossword-feedback{min-height:14px;padding-top:7px;text-align:center;color:var(--cyan);font:9px 'DM Mono',monospace;letter-spacing:.5px}
+.clue-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;overflow:auto;min-height:0}
+.clue-group h3{margin:0 0 9px;color:var(--cyan);font:10px 'DM Mono',monospace;letter-spacing:1px}
+.clue-group ol{margin:0;padding-left:23px;color:#d5e3f1}
+.clue-group li{padding:0 0 10px 3px;font-size:clamp(11px,.95vw,13px);line-height:1.12;cursor:pointer;border-radius:3px}.clue-group li.active-clue{color:var(--cyan);background:#51e5df12}
+.clue-group li::marker{color:#7f9bb8;font:10px 'DM Mono',monospace}
+.crossword-board-panel .panel-head,.crossword-clues-panel .panel-head{flex:0 0 auto}
+@media(max-width:1050px){
+ #game{height:auto;min-height:100vh;overflow:visible}
+ #crosswordModule.active{grid-template-columns:1fr;grid-template-rows:auto auto}
+ .crossword-board-wrap{overflow:auto;justify-content:flex-start}
+ .crossword-grid{--cell:clamp(15px,2.15vw,21px)}
+ .crossword-board-panel{min-height:570px}
+ .crossword-clues-panel{min-height:330px}
+ .clue-group li{font-size:13px}
+}
+@media(max-width:580px){
+ .topbar{flex-wrap:wrap}
+ .module-nav{order:3;width:100%;margin:8px 0 0}
+ .module-tab{flex:1}
+ .crossword-board-panel{min-height:530px}
+ .crossword-grid{--cell:clamp(14px,4vw,19px)}
+ .clue-columns{gap:8px;padding:10px}
+ .clue-group li{font-size:11px}
+}
+
+</style>
+</head>
+<body>
+<section id="intro" class="screen active">
+ <div class="intro-wrap">
+  <div>
+   <div class="eyebrow">SPTECH · ARQUITETURA COMPUTACIONAL · SPRINT 03</div>
+   <h1 class="intro-title">CORE<br><span>PROTOCOL</span></h1>
+   <p class="intro-copy">A placa está incompleta. Descubra os componentes de arquitetura computacional antes que suas <strong>3 chances</strong> acabem.</p>
+   <div class="intro-actions"><button class="primary" id="startBtn">INICIAR JOGO ↗</button><div class="intro-note">16 TERMOS NO BANCO<br>3 VIDAS · 1 PALAVRA POR RODADA</div></div>
+  </div>
+  <div class="preview-board">
+   <div class="board-head"><span>MB-01 // MAINBOARD</span><span>STATUS: OFFLINE</span></div>
+   <svg class="preview-svg" viewBox="0 0 500 330" aria-label="Ilustração de uma placa mãe">
+    <path d="M35 30H465V285H35Z" fill="#0d3937" stroke="#348b80" stroke-width="3"/>
+    <path d="M55 50H445V265H55Z" fill="none" stroke="#235d5c" stroke-width="2"/>
+    <g stroke="#4b9d91" fill="none" stroke-width="3"><path d="M80 95H155V135H210M290 80H390V120H425M85 225H165V190H210M300 235H390V195H425"/><path d="M240 50V90M240 220V265"/></g>
+    <rect x="185" y="95" width="130" height="125" rx="5" fill="#111d2b" stroke="#6e9a9d" stroke-width="3"/>
+    <rect x="198" y="108" width="104" height="99" fill="#0a121e" stroke="#3d6269"/>
+    <g stroke="#8aaeb0" stroke-width="3"><path d="M200 87v8m18-8v8m18-8v8m18-8v8m18-8v8m18-8v8M200 220v8m18-8v8m18-8v8m18-8v8m18-8v8m18-8v8"/></g>
+    <rect x="75" y="70" width="70" height="48" rx="3" fill="#142330" stroke="#51bdb2" stroke-width="2"/><rect x="350" y="65" width="65" height="22" fill="#142330" stroke="#51bdb2" stroke-width="2"/>
+    <rect x="350" y="105" width="65" height="22" fill="#142330" stroke="#51bdb2" stroke-width="2"/>
+    <rect x="75" y="180" width="75" height="52" rx="3" fill="#142330" stroke="#51bdb2" stroke-width="2"/>
+    <circle cx="240" cy="157" r="22" fill="#162e3a" stroke="#51e5df" stroke-width="2"/><text x="240" y="162" text-anchor="middle" fill="#51e5df" font-family="monospace" font-size="13">?</text>
+    <g fill="#51e5df"><circle cx="155" cy="135" r="4"/><circle cx="390" cy="120" r="4"/><circle cx="165" cy="190" r="4"/><circle cx="390" cy="195" r="4"/></g>
+    <text x="250" y="310" text-anchor="middle" fill="#7395aa" font-family="monospace" font-size="10" letter-spacing="3">AWAITING COMPONENTS</text>
+   </svg>
+  </div>
+ </div>
+</section>
+
+<section id="game" class="screen">
+ <header class="topbar"><div class="brand">CORE <span>//</span> PROTOCOL</div><nav class="module-nav" aria-label="Módulos do jogo"><button class="module-tab active" id="hangmanTab" type="button">01 // FORCA</button><button class="module-tab" id="crosswordTab" type="button">02 // CRUZADINHA</button></nav><div class="top-meta">ARQUITETURA COMPUTACIONAL<br>MISSION: REBUILD THE MAINBOARD</div></header>
+ <div id="hangmanModule" class="module-view active">
+ <main class="game-grid">
+  <section class="panel">
+   <div class="panel-head"><span class="panel-title">01 // PLACA-MÃE</span><span class="status" id="boardStatus">SISTEMA INCOMPLETO</span></div>
+   <div class="motherboard-area">
+    <div class="progress-row"><span>COMPONENTES INSTALADOS</span><span id="componentCount">0 / 16</span></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <svg class="motherboard" viewBox="0 0 560 470" role="img" aria-label="Placa mãe que recebe componentes conforme as palavras são descobertas">
+     <path class="board-base" d="M25 22H535V435H25Z"/>
+     <path class="board-inner" d="M43 40H517V417H43Z"/>
+     <g class="trace">
+      <path d="M70 120H160V150H210M350 100H455V145H490M70 330H165V295H210M350 320H455V280H490M280 42V75M280 390V415M43 220H100V250H185M375 220H517"/>
+      <path d="M130 42V75H170M430 42V65H400M130 415V380H170M430 415V380H400"/>
+     </g>
+     <g fill="#51e5df"><circle class="trace-dot" cx="160" cy="150" r="4"/><circle class="trace-dot" cx="455" cy="145" r="4"/><circle class="trace-dot" cx="165" cy="295" r="4"/><circle class="trace-dot" cx="455" cy="280" r="4"/></g>
+     <!-- CPU -->
+     <g id="part-cpu" class="part" transform="translate(205 125)">
+      <rect class="chip" x="0" y="0" width="150" height="145" rx="5"/>
+      <rect x="13" y="13" width="124" height="119" fill="#182b3b" stroke="#51e5df" stroke-width="2"/>
+      <rect x="26" y="26" width="98" height="93" fill="#0d1724" stroke="#537d91"/>
+      <text x="75" y="78" fill="#51e5df" text-anchor="middle" font-family="Orbitron" font-size="19">CORE</text>
+      <g class="chip-pin"><path d="M15 -8v8m20 -8v8m20 -8v8m20 -8v8m20 -8v8m20 -8v8m20 -8v8M15 145v8m20 -8v8m20 -8v8m20 -8v8m20 -8v8m20 -8v8m20 -8v8"/></g>
+      <text class="part-label" x="75" y="168" text-anchor="middle">CPU</text>
+     </g>
+     <!-- RAM -->
+     <g id="part-ram" class="part" transform="translate(58 80)">
+      <rect class="slot" x="0" y="0" width="112" height="26" rx="2"/><g fill="#9dc4b9"><rect x="10" y="5" width="13" height="15"/><rect x="30" y="5" width="13" height="15"/><rect x="50" y="5" width="13" height="15"/><rect x="70" y="5" width="13" height="15"/><rect x="90" y="5" width="13" height="15"/></g><text class="part-label" x="56" y="-9" text-anchor="middle">RAM</text>
+     </g>
+     <!-- ROM -->
+     <g id="part-rom" class="part" transform="translate(390 78)"><rect class="chip" width="72" height="49" rx="3"/><rect x="8" y="8" width="56" height="33" fill="#1c3542" stroke="#51e5df"/><text class="part-label" x="36" y="-8" text-anchor="middle">ROM</text></g>
+     <!-- ULA -->
+     <g id="part-ula" class="part" transform="translate(65 185)"><rect class="chip" width="82" height="64" rx="4"/><rect x="8" y="8" width="66" height="48" fill="#1a2d3b" stroke="#51e5df"/><text x="41" y="38" fill="#51e5df" text-anchor="middle" font-family="monospace" font-size="12">ALU</text><text class="part-label" x="41" y="78" text-anchor="middle">ULA</text></g>
+     <!-- UC -->
+     <g id="part-uc" class="part" transform="translate(405 175)"><rect class="chip" width="75" height="60" rx="4"/><path d="M15 15H60M15 25H60M15 35H50" stroke="#51e5df" stroke-width="2"/><text class="part-label" x="37" y="75" text-anchor="middle">UC</text></g>
+     <!-- EEPROM -->
+     <g id="part-eeprom" class="part" transform="translate(65 285)"><rect class="chip" width="74" height="50" rx="3"/><path d="M12 12H62M12 22H62M12 32H50" stroke="#51e5df" stroke-width="2"/><text class="part-label" x="37" y="65" text-anchor="middle">EEPROM</text></g>
+     <!-- FLASH -->
+     <g id="part-flash" class="part" transform="translate(400 290)"><rect class="chip" width="75" height="50" rx="3"/><rect x="10" y="10" width="55" height="30" fill="#1c3542" stroke="#51e5df"/><text class="part-label" x="37" y="65" text-anchor="middle">FLASH</text></g>
+     <!-- CACHE -->
+     <g id="part-cache" class="part" transform="translate(205 315)"><rect class="chip" width="150" height="42" rx="3"/><g fill="#51e5df"><rect x="12" y="10" width="20" height="22"/><rect x="42" y="10" width="20" height="22"/><rect x="72" y="10" width="20" height="22"/><rect x="102" y="10" width="20" height="22"/></g><text class="part-label" x="75" y="58" text-anchor="middle">CACHE</text></g>
+     <!-- storage -->
+     <g id="part-memoriademassa" class="part" transform="translate(190 55)"><rect class="metal" x="0" y="0" width="180" height="42" rx="4"/><rect x="9" y="7" width="162" height="28" fill="#253b4c" stroke="#a6c0c8"/><circle cx="22" cy="21" r="6" fill="#51e5df"/><text class="part-label" x="90" y="-8" text-anchor="middle">ARMAZENAMENTO</text></g>
+     <!-- registradores -->
+     <g id="part-registradores" class="part" transform="translate(205 380)"><rect class="chip" width="150" height="28" rx="3"/><g stroke="#51e5df" stroke-width="2"><path d="M15 8V20m20-12V20m20-12V20m20-12V20m20-12V20m20-12V20m20-12V20"/></g><text class="part-label" x="75" y="44" text-anchor="middle">REGISTRADORES</text></g>
+     <!-- DMA -->
+     <g id="part-dma" class="part" transform="translate(465 245)"><rect class="chip" width="40" height="30" rx="2"/><text x="20" y="20" text-anchor="middle" fill="#51e5df" font-family="monospace" font-size="10">DMA</text></g>
+     <!-- buses -->
+     <g id="part-addressbus" class="part" transform="translate(55 365)"><path d="M0 0H105M0 9H105M0 18H105" stroke="#51e5df" stroke-width="3"/><text class="part-label" x="52" y="34" text-anchor="middle">ADDRESS BUS</text></g>
+     <g id="part-databus" class="part" transform="translate(400 365)"><path d="M0 0H105M0 9H105M0 18H105" stroke="#51e5df" stroke-width="3"/><text class="part-label" x="52" y="34" text-anchor="middle">DATA BUS</text></g>
+     <g id="part-microcontrolador" class="part" transform="translate(155 32)"><rect class="chip" width="90" height="28" rx="3"/><text class="part-label" x="45" y="18" text-anchor="middle">MCU</text></g>
+     <g id="part-dualcore" class="part" transform="translate(290 32)"><rect class="chip" width="90" height="28" rx="3"/><circle cx="30" cy="14" r="7" fill="#51e5df"/><circle cx="60" cy="14" r="7" fill="#51e5df"/><text class="part-label" x="45" y="-5" text-anchor="middle">DUAL CORE</text></g>
+     <g id="part-quadcore" class="part" transform="translate(245 270)"><rect class="chip" width="70" height="35" rx="3"/><g fill="#51e5df"><circle cx="18" cy="12" r="5"/><circle cx="52" cy="12" r="5"/><circle cx="18" cy="25" r="5"/><circle cx="52" cy="25" r="5"/></g><text class="part-label" x="35" y="50" text-anchor="middle">QUAD CORE</text></g>
+    </svg>
+    <div class="micro" style="text-align:center;color:#66869d">NOVOS COMPONENTES SÃO INSTALADOS A CADA PALAVRA DESCOBERTA</div>
+   </div>
+  </section>
+  <div class="right-column">
+   <section class="panel hangman-panel">
+    <div class="panel-head"><span class="panel-title">02 // CONTROLE DE FALHAS</span><span class="status" id="roundLabel">RODADA 01</span></div>
+    <div class="hangman-wrap">
+     <svg class="hangman" viewBox="0 0 340 210" aria-label="Desenho da forca">
+      <g class="gallows"><path d="M55 190H190M90 190V22H235V48M90 55H120"/></g>
+      <g id="h-head" class="person"><circle cx="235" cy="66" r="18"/></g>
+      <g id="h-body" class="person"><path d="M235 84V135"/></g>
+      <g id="h-arm1" class="person"><path d="M235 96L205 119"/></g><g id="h-arm2" class="person"><path d="M235 96L265 119"/></g>
+      <g id="h-leg1" class="person"><path d="M235 135L207 169"/></g><g id="h-leg2" class="person"><path d="M235 135L263 169"/></g>
+     </g>
+    </div>
+    <div class="lives" id="lives"><span class="life">♥</span><span class="life">♥</span><span class="life">♥</span></div>
+   </section>
+   <section class="panel word-panel">
+    <div class="panel-head"><span class="panel-title">03 // IDENTIFIQUE O COMPONENTE</span><span class="micro">PALAVRA OCULTA</span></div>
+    <div class="clue" id="clue">Carregando pista...</div>
+    <form id="answerForm">
+     <div class="word" id="word" aria-label="Digite a palavra letra por letra"></div>
+     <div class="answer-actions"><button class="primary" type="submit">ENVIAR ↗</button></div>
+    </form>
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <div class="word-info"><span id="wordProgress">PALAVRA 1 DE 16</span><span>ERROS: <b id="errorCount">0</b> / 3</span></div>
+    <div class="controls"><button class="secondary" id="restartBtn">REINICIAR ↺</button></div>
+   </section>
+  </div>
+ </main>
+ </div>
+ <section id="crosswordModule" class="module-view" aria-label="Módulo de cruzadinha">
+  <div class="panel crossword-board-panel">
+   <div class="panel-head"><span class="panel-title">04 // TABULEIRO DE ARQUITETURA</span><span class="status">12 TERMOS CRUZADOS</span></div>
+   <div class="crossword-board-wrap">
+    <div id="crosswordGrid" class="crossword-grid" aria-label="Tabuleiro de cruzadinha"></div>
+   </div>
+   <div class="crossword-footer">
+    <div class="crossword-score" id="crosswordScore">0 de 12 palavras corretas</div>
+    <div class="crossword-actions">
+     <button class="secondary" id="crosswordReset" type="button">REINICIAR ↺</button>
+     <button class="primary" id="crosswordCheck" type="button">CONFERIR ✓</button>
+    </div>
+    <div class="crossword-feedback" id="crosswordFeedback" aria-live="polite">PREENCHA AS CASAS E CLIQUE EM CONFERIR.</div>
+   </div>
+  </div>
+  <aside class="panel crossword-clues-panel">
+   <div class="panel-head"><span class="panel-title">05 // BANCO DE PISTAS</span><span class="micro">HORIZONTAIS / VERTICAIS</span></div>
+   <div class="clue-columns">
+    <section class="clue-group"><h3>HORIZONTAIS</h3><ol id="acrossClues"></ol></section>
+    <section class="clue-group"><h3>VERTICAIS</h3><ol id="downClues"></ol></section>
+   </div>
+  </aside>
+ </section>
+</section>
+<section id="result" class="screen">
+ <div class="result-card"><div class="result-icon" id="resultIcon">✕</div><div class="eyebrow" id="resultEyebrow">MISSION FAILED</div><h1 id="resultTitle">SISTEMA COMPROMETIDO</h1><p id="resultText">Suas chances acabaram antes de completar a placa.</p><button class="primary" id="retryBtn">TENTAR NOVAMENTE ↻</button><button class="secondary" id="homeBtn">VOLTAR AO INÍCIO</button></div>
+</section>
+<script>
+const words = [
+ {answer:"CPU", clue:"Executa instruções e coordena o processamento geral do computador.", part:"cpu"},
+ {answer:"ULA", clue:"Parte responsável por cálculos matemáticos e operações lógicas.", part:"ula"},
+ {answer:"UC", clue:"Interpreta instruções e coordena as ações dos demais componentes.", part:"uc"},
+ {answer:"REGISTRADORES", clue:"Pequenas posições internas que guardam dados temporários de acesso imediato.", part:"registradores"},
+ {answer:"RAM", clue:"Armazena temporariamente dados e programas em uso; perde o conteúdo sem energia.", part:"ram"},
+ {answer:"ROM", clue:"Guarda instruções permanentes usadas na inicialização do equipamento.", part:"rom"},
+ {answer:"EEPROM", clue:"Memória não volátil que permite apagar e regravar dados eletricamente.", part:"eeprom"},
+ {answer:"FLASH", clue:"Tipo de memória não volátil muito usado em cartões e unidades USB.", part:"flash"},
+ {answer:"CACHE", clue:"Armazena cópias de dados frequentes para reduzir o tempo de acesso.", part:"cache"},
+ {answer:"MEMORIADEMASSA", clue:"Armazenamento não volátil usado para guardar grandes volumes de arquivos.", part:"memoriademassa"},
+ {answer:"DMA", clue:"Recurso que permite transferências entre memória e periféricos sem intervenção contínua do processador.", part:"dma"},
+ {answer:"ADDRESSBUS", clue:"Conjunto de linhas que indica a posição de memória ou dispositivo acessado.", part:"addressbus"},
+ {answer:"DATABUS", clue:"Conjunto de linhas usado para transportar informações entre componentes.", part:"databus"},
+ {answer:"MICROCONTROLADOR", clue:"Circuito integrado que reúne processamento, memória e interfaces para controlar dispositivos.", part:"microcontrolador"},
+ {answer:"DUALCORE", clue:"Arquitetura de processador que reúne duas unidades de processamento no mesmo chip.", part:"dualcore"},
+ {answer:"QUADCORE", clue:"Arquitetura de processador que reúne quatro unidades de processamento no mesmo chip.", part:"quadcore"}
+];
+const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+let order=[],round=0,errors=0,solved=0,locked=false;
+const $=id=>document.getElementById(id);
+function showScreen(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));$(id).classList.add("active")}
+function shuffle(){order=words.map((_,i)=>i).sort(()=>Math.random()-.5)}
+function startGame(){shuffle();round=0;errors=0;solved=0;document.querySelectorAll(".part").forEach(p=>p.classList.remove("unlocked"));$("componentCount").textContent="0 / 16";$("progressFill").style.width="0%";$("boardStatus").textContent="SISTEMA INCOMPLETO";showScreen("game");loadRound()}
+function loadRound(){
+ if(round>=order.length){finish(true);return}
+ errors=0;locked=false;
+ const item=words[order[round]];
+ $("clue").textContent=item.clue;
+ $("roundLabel").textContent=`RODADA ${String(round+1).padStart(2,"0")}`;
+ $("wordProgress").textContent=`PALAVRA ${round+1} DE ${words.length}`;
+ $("errorCount").textContent="0";
+ $("toast").textContent="";
+ renderWord();renderLives();renderHangman();
+ const firstSlot=$("word").querySelector("input");
+ if(firstSlot)firstSlot.focus();
+}
+function renderWord(){
+ const answer=words[order[round]].answer;
+ $("word").innerHTML="";
+ answer.split("").forEach((letter,index)=>{
+  const slot=document.createElement("input");
+  slot.className="letter-slot";
+  slot.type="text";
+  slot.maxLength=1;
+  slot.autocomplete="off";
+  slot.autocapitalize="characters";
+  slot.spellcheck=false;
+  slot.inputMode="text";
+  slot.setAttribute("aria-label",`Letra ${index+1}`);
+  slot.addEventListener("input",()=>{
+   slot.value=slot.value.replace(/[^a-z]/gi,"").slice(-1).toUpperCase();
+   if(slot.value && slot.nextElementSibling)slot.nextElementSibling.focus();
+  });
+  slot.addEventListener("keydown",event=>{
+   if(event.key==="Backspace" && !slot.value && slot.previousElementSibling){
+    slot.previousElementSibling.focus();
+   }else if(event.key==="ArrowLeft" && slot.previousElementSibling){
+    slot.previousElementSibling.focus();
+   }else if(event.key==="ArrowRight" && slot.nextElementSibling){
+    slot.nextElementSibling.focus();
+   }
+  });
+  slot.addEventListener("paste",event=>{
+   event.preventDefault();
+   const pasted=(event.clipboardData||window.clipboardData).getData("text").toUpperCase().replace(/[^A-Z]/g,"");
+   const slots=[...$("word").querySelectorAll("input")];
+   pasted.split("").forEach((char,i)=>{if(slots[index+i])slots[index+i].value=char});
+   const next=slots[Math.min(index+pasted.length,slots.length-1)];
+   if(next)next.focus();
+  });
+  $("word").appendChild(slot);
+ });
+}
+function renderLives(){$("lives").innerHTML="";for(let i=0;i<3;i++){const s=document.createElement("span");s.className="life"+(i<errors?" lost":"");s.textContent="♥";$("lives").appendChild(s)}}
+function renderHangman(){["h-head","h-body","h-arm1","h-arm2","h-leg1","h-leg2"].forEach((id,i)=>$(id).classList.toggle("show",errors>=i+1))}
+function normalizeAnswer(value){return value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[\s_-]/g,"").toUpperCase()}
+function submitAnswer(event){
+ event.preventDefault();
+ if(locked)return;
+ const slots=[...$("word").querySelectorAll("input")];
+ const typed=normalizeAnswer(slots.map(slot=>slot.value).join(""));
+ if(!typed){$("toast").textContent="PREENCHA OS ESPAÇOS PARA ENVIAR A RESPOSTA";const firstEmpty=slots.find(slot=>!slot.value);if(firstEmpty)firstEmpty.focus();return}
+ const answer=words[order[round]].answer;
+ if(typed===answer){solveWord();return}
+ errors++;
+ $("errorCount").textContent=errors;
+ renderLives();renderHangman();
+ $("toast").textContent="RESPOSTA INCORRETA // UMA VIDA FOI DESCONTADA";
+ slots.forEach(slot=>slot.value="");
+ if(slots[0])slots[0].focus();
+ if(errors>=3){locked=true;slots.forEach(slot=>slot.disabled=true);setTimeout(()=>finish(false),700)}
+}
+function solveWord(){
+ locked=true;const item=words[order[round]];
+ const part=$("part-"+item.part);if(part)part.classList.add("unlocked");
+ solved++;$("componentCount").textContent=`${solved} / ${words.length}`;$("progressFill").style.width=(solved/words.length*100)+"%";
+ $("boardStatus").textContent=solved===words.length?"PLACA COMPLETA":"COMPONENTE INSTALADO";
+ $("toast").textContent=`${item.answer} IDENTIFICADO // COMPONENTE INSTALADO`;
+ setTimeout(()=>{round++;loadRound()},1050);
+}
+function finish(won){
+ showScreen("result");
+ if(won){$("resultIcon").textContent="✓";$("resultEyebrow").textContent="MISSION COMPLETE";$("resultTitle").textContent="PLACA RESTAURADA";$("resultText").textContent=`Excelente! Você identificou os ${words.length} termos e instalou todos os componentes.`}
+ else{$("resultIcon").textContent="✕";$("resultEyebrow").textContent="MISSION FAILED";$("resultTitle").textContent="SISTEMA COMPROMETIDO";$("resultText").textContent=`Suas 3 vidas acabaram durante a rodada atual. ${solved} de ${words.length} componentes foram instalados. Tente novamente e complete a placa.`}
+}
+function restart(){startGame()}
+$("startBtn").addEventListener("click",startGame);$("retryBtn").addEventListener("click",startGame);$("restartBtn").addEventListener("click",startGame);$("homeBtn").addEventListener("click",()=>showScreen("intro"));
+$("answerForm").addEventListener("submit",submitAnswer);
+
+const crosswordEntries = [
+ {number:1,word:"DUALCORE",row:0,col:13,dir:"down",clue:"Processador que reúne duas unidades de processamento em um único chip."},
+ {number:2,word:"EEPROM",row:1,col:15,dir:"down",clue:"Memória não volátil que pode ser apagada e regravada eletricamente."},
+ {number:3,word:"MEMORIADEMASSA",row:2,col:0,dir:"across",clue:"Armazenamento usado para guardar arquivos e programas mesmo sem energia."},
+ {number:4,word:"FLASH",row:4,col:20,dir:"down",clue:"Memória não volátil usada em pen drives e cartões de memória."},
+ {number:5,word:"MICROCONTROLADOR",row:5,col:9,dir:"across",clue:"Circuito integrado que combina processamento, memória e entradas e saídas para controlar sistemas."},
+ {number:6,word:"CPU",row:5,col:11,dir:"down",clue:"Componente que executa instruções e coordena as operações do computador."},
+ {number:7,word:"RAM",row:5,col:24,dir:"down",clue:"Memória temporária que mantém dados dos programas em execução."},
+ {number:8,word:"ADDRESSBUS",row:6,col:24,dir:"across",clue:"Barramento que transporta o endereço do dado ou dispositivo acessado."},
+ {number:9,word:"DATABUS",row:7,col:18,dir:"down",clue:"Barramento que transporta dados entre os componentes do computador."},
+ {number:10,word:"CACHE",row:8,col:17,dir:"across",clue:"Memória rápida que guarda cópias de informações usadas com frequência."},
+ {number:11,word:"REGISTRADORES",row:9,col:23,dir:"down",clue:"Pequenas áreas internas ao processador que armazenam valores temporários."},
+ {number:12,word:"QUADCORE",row:10,col:16,dir:"across",clue:"Processador que reúne quatro unidades de processamento em um único chip."}
+];
+let crosswordCells = {};
+let crosswordChecked = false;
+let activeCrosswordEntry = null;
+
+function buildCrossword(){
+ crosswordCells = {};
+ activeCrosswordEntry = crosswordEntries.findIndex(entry=>entry.dir==="across");
+ const grid = $("crosswordGrid");
+ grid.innerHTML = "";
+ crosswordEntries.forEach((entry,index)=>{
+  entry.word.split("").forEach((letter,pos)=>{
+   const row=entry.row+(entry.dir==="down"?pos:0);
+   const col=entry.col+(entry.dir==="across"?pos:0);
+   const key=`${row}-${col}`;
+   if(!crosswordCells[key])crosswordCells[key]={row,col,letter,entries:[]};
+   crosswordCells[key].entries.push(index);
+  });
+ });
+ const starts={};
+ crosswordEntries.forEach(entry=>starts[`${entry.row}-${entry.col}`]=entry.number);
+ for(let row=0;row<22;row++){
+  for(let col=0;col<34;col++){
+   const key=`${row}-${col}`;
+   const cell=crosswordCells[key];
+   const box=document.createElement("div");
+   box.className="cross-cell"+(cell?"":" empty-cell");
+   if(cell){
+    if(starts[key]){
+     const n=document.createElement("span");
+     n.className="cell-number";n.textContent=starts[key];box.appendChild(n);
+    }
+    const input=document.createElement("input");
+    input.type="text";input.maxLength=1;input.autocomplete="off";input.autocapitalize="characters";input.spellcheck=false;
+    input.dataset.cell=key;input.setAttribute("aria-label",`Linha ${row+1}, coluna ${col+1}`);
+    input.addEventListener("focus",()=>{
+     const active=activeCrosswordEntry===null?null:crosswordEntries[activeCrosswordEntry];
+     if(!active || !cell.entries.includes(activeCrosswordEntry)){
+      const preferred=active?.dir || "across";
+      activeCrosswordEntry=cell.entries.find(i=>crosswordEntries[i].dir===preferred) ?? cell.entries[0];
+     }
+     highlightActiveClue();
+    });
+    input.addEventListener("input",()=>{
+     input.value=input.value.toUpperCase().replace(/[^A-Z]/g,"").slice(-1);
+     clearCrosswordCheck();
+     if(input.value){
+      const next=findNextCrosswordCell(cell);
+      if(next)next.focus();
+     }
+    });
+    input.addEventListener("keydown",event=>{
+     if(event.key==="Backspace"&&!input.value){const prev=findPreviousCrosswordCell(cell);if(prev){event.preventDefault();prev.focus()}}
+     if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)){
+      const delta={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[event.key];
+      const target=$(`${"crosswordGrid"}`).querySelector(`[data-cell="${row+delta[0]}-${col+delta[1]}"]`);
+      if(target){event.preventDefault();target.focus()}
+     }
+    });
+    box.appendChild(input);
+   }
+   grid.appendChild(box);
+  }
+ }
+ renderCrosswordClues();
+}
+
+function highlightActiveClue(){
+ document.querySelectorAll(".clue-group li").forEach(li=>li.classList.remove("active-clue"));
+ if(activeCrosswordEntry===null)return;
+ const entry=crosswordEntries[activeCrosswordEntry];
+ const list=$(entry.dir==="across"?"acrossClues":"downClues");
+ const clue=[...list.children].find(li=>Number(li.value)===entry.number);
+ if(clue)clue.classList.add("active-clue");
+}
+function selectCrosswordEntry(index){
+ activeCrosswordEntry=index;
+ const entry=crosswordEntries[index];
+ highlightActiveClue();
+ const input=$("crosswordGrid").querySelector(`[data-cell="${entry.row}-${entry.col}"]`);
+ if(input)input.focus();
+}
+function findNextCrosswordCell(cell){
+ const entryIndex=activeCrosswordEntry!==null && cell.entries.includes(activeCrosswordEntry)
+  ? activeCrosswordEntry
+  : (cell.entries.find(i=>crosswordEntries[i].dir==="across") ?? cell.entries[0]);
+ const entry=crosswordEntries[entryIndex];
+ const pos=entry.dir==="across"?cell.col-entry.col:cell.row-entry.row;
+ const nextPos=pos+1;
+ if(nextPos>=entry.word.length)return null;
+ const row=entry.row+(entry.dir==="down"?nextPos:0);
+ const col=entry.col+(entry.dir==="across"?nextPos:0);
+ return $("crosswordGrid").querySelector(`[data-cell="${row}-${col}"]`);
+}
+function findPreviousCrosswordCell(cell){
+ const entryIndex=activeCrosswordEntry!==null && cell.entries.includes(activeCrosswordEntry)
+  ? activeCrosswordEntry
+  : (cell.entries.find(i=>crosswordEntries[i].dir==="across") ?? cell.entries[0]);
+ const entry=crosswordEntries[entryIndex];
+ const pos=entry.dir==="across"?cell.col-entry.col:cell.row-entry.row;
+ if(pos<=0)return null;
+ const row=entry.row+(entry.dir==="down"?pos-1:0);
+ const col=entry.col+(entry.dir==="across"?pos-1:0);
+ return $("crosswordGrid").querySelector(`[data-cell="${row}-${col}"]`);
+}
+function renderCrosswordClues(){
+ ["across","down"].forEach(dir=>{
+  const list=$(dir==="across"?"acrossClues":"downClues");
+  list.innerHTML="";
+  crosswordEntries.forEach((entry,index)=>{
+   if(entry.dir!==dir)return;
+   const li=document.createElement("li");
+   li.value=entry.number;
+   li.textContent=entry.clue;
+   li.addEventListener("click",()=>selectCrosswordEntry(index));
+   list.appendChild(li);
+  });
+ });
+ highlightActiveClue();
+}
+function clearCrosswordCheck(){
+ if(!crosswordChecked)return;
+ crosswordChecked=false;
+ document.querySelectorAll(".cross-cell").forEach(cell=>cell.classList.remove("correct","incorrect"));
+ $("crosswordScore").textContent="— de 12 palavras corretas";
+ $("crosswordFeedback").textContent="RESPOSTAS ALTERADAS // CLIQUE EM CONFERIR NOVAMENTE.";
+}
+function checkCrossword(){
+ let correct=0;
+ const cellResults={};
+ crosswordEntries.forEach(entry=>{
+  let typed="";
+  const keys=[];
+  entry.word.split("").forEach((_,pos)=>{
+   const row=entry.row+(entry.dir==="down"?pos:0);
+   const col=entry.col+(entry.dir==="across"?pos:0);
+   const key=`${row}-${col}`;
+   const input=$("crosswordGrid").querySelector(`[data-cell="${key}"]`);
+   typed+=(input?.value||"").toUpperCase();
+   keys.push(key);
+  });
+  const isCorrect=typed===entry.word;
+  if(isCorrect)correct++;
+  keys.forEach(key=>{
+   if(!cellResults[key])cellResults[key]={correct:false,incorrect:false};
+   cellResults[key][isCorrect?"correct":"incorrect"]=true;
+  });
+ });
+ Object.entries(cellResults).forEach(([key,result])=>{
+  const input=$("crosswordGrid").querySelector(`[data-cell="${key}"]`);
+  if(!input)return;
+  const cell=input.parentElement;
+  // If a crossing cell belongs to a correct word, keep it green.
+  cell.classList.toggle("correct",result.correct);
+  cell.classList.toggle("incorrect",result.incorrect&&!result.correct);
+ });
+ crosswordChecked=true;
+ $("crosswordScore").textContent=`${correct} de ${crosswordEntries.length} palavras corretas`;
+ $("crosswordFeedback").textContent=correct===crosswordEntries.length?"TODAS AS PALAVRAS CORRETAS // TABULEIRO COMPLETO.":`${crosswordEntries.length-correct} PALAVRA(S) PRECISAM DE AJUSTE.`;
+}
+function resetCrossword(){
+ $("crosswordGrid").querySelectorAll("input").forEach(input=>input.value="");
+ document.querySelectorAll(".cross-cell").forEach(cell=>cell.classList.remove("correct","incorrect"));
+ crosswordChecked=false;
+ $("crosswordScore").textContent=`0 de ${crosswordEntries.length} palavras corretas`;
+ $("crosswordFeedback").textContent="TABULEIRO REINICIADO // BOA SORTE.";
+}
+function switchModule(module){
+ const isCrossword=module==="crossword";
+ $("hangmanModule").classList.toggle("active",!isCrossword);
+ $("crosswordModule").classList.toggle("active",isCrossword);
+ $("hangmanTab").classList.toggle("active",!isCrossword);
+ $("crosswordTab").classList.toggle("active",isCrossword);
+}
+$("hangmanTab").addEventListener("click",()=>switchModule("hangman"));
+$("crosswordTab").addEventListener("click",()=>switchModule("crossword"));
+$("crosswordCheck").addEventListener("click",checkCrossword);
+$("crosswordReset").addEventListener("click",resetCrossword);
+buildCrossword();
+
+</script>
+</body>
+</html>
